@@ -1,36 +1,53 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+)
 
 func main() {
-    var bb, tb float64
+	// serve ke folder static
+	http.Handle("/", http.FileServer(http.Dir("./static")))
 
-    fmt.Print("Masukan berat badan (kg): ")
-    fmt.Scan(&bb)
-	// fmt.Println("Debug bb:", bb)
+	// endpoint / bmi
+	http.HandleFunc("/bmi", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
 
+		// ambil data
+		weight, _ := strconv.ParseFloat(r.FormValue("weight"), 64)
+		height, _ := strconv.ParseFloat(r.FormValue("height"), 64)
 
-    fmt.Print("Masukan tinggi badan (m): ")
-    fmt.Scan(&tb)
-	// fmt.Println("Debug tb:", tb)
+		// cek val
+		if height <= 0 {
+			http.Error(w, "Tinggi badan harus lebih dari 0", http.StatusBadRequest)
+			return
+		}
+		if weight <= 0 {
+			http.Error(w, "Berat badan harus lebih dari 0", http.StatusBadRequest)
+			return
+		}
 
-    if tb <= 0 {
-        fmt.Println("Tinggi badan harus lebih dari 0")
-        return
-    }
+		// calc BMI
+		imt := weight / ((height / 100) * (height / 100))
 
-	if bb <= 0 {
-		fmt.Println("Berat badan harus lebih dari 0")
-		return
-	}
+		result := fmt.Sprintf("Indeks Massa Tubuh (IMT): %.2f\n", imt)
 
-    imt := bb / (tb * tb)
-    fmt.Printf("Indeks Massa Tubuh (IMT) Anda: %.2f\n", imt)
+		// val kategori
+		if imt < 18.5 {
+			result += "Kategori: Berat badan kurang"
+		} else if imt >= 18.5 && imt < 24.9 {
+			result += "Kategori: Ideal"
+		} else if imt >= 25.0 && imt < 29.9 {
+			result += "Kategori: Berat badan berlebih"
+		} else {
+			result += "Kategori: Obesitas"
+		}
 
-	if imt < 18.5 {
-		fmt.Println("Berat badan kurang")
-	} else if imt >= 18.5 && imt < 24.9 {
-		fmt.Println("Ideal") 
-	} else if imt >= 25.0 && imt < 29.9 {
-		fmt.Println("Berat badan berlebih") }
-	}
+		fmt.Fprint(w, result)
+	})
+
+	// start server
+	fmt.Println("Server jalan di http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
+}
